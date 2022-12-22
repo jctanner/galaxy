@@ -1,4 +1,4 @@
-FROM quay.io/centos/centos:7
+FROM quay.io/almalinux/almalinux:8
 
 ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US:en
@@ -7,26 +7,28 @@ ENV LC_ALL en_US.UTF-8
 ENV PYTHONUNBUFFERED 1
 ENV PIP_NO_CACHE_DIR off
 ENV PIP_DEFAULT_TIMEOUT=60
+ENV CRYPTOGRAPHY_DONT_BUILD_RUST 1
 
 ENV GALAXY_VENV /usr/share/galaxy/venv
 ENV DJANGO_SETTINGS_MODULE galaxy.settings.development
 ENV C_FORCE_ROOT 1
 
 # Install node.js and yarn
-RUN curl -sL -o '/tmp/nodesource-release-el7-1.noarch.rpm' \
-        'https://rpm.nodesource.com/pub_8.x/el/7/x86_64/nodesource-release-el7-1.noarch.rpm' \
-    && rpm -i --nosignature --force '/tmp/nodesource-release-el7-1.noarch.rpm' \
-    && rm -f '/tmp/nodesource-release-el7-1.noarch.rpm' \
+RUN curl -sL -o '/tmp/nodesource-release-el8-1.noarch.rpm' \
+        'https://rpm.nodesource.com/pub_8.x/el/8/x86_64/nodesource-release-el8-1.noarch.rpm' \
+    && rpm -i --nosignature --force '/tmp/nodesource-release-el8-1.noarch.rpm' \
+    && rm -f '/tmp/nodesource-release-el8-1.noarch.rpm' \
     && curl -sL -o '/etc/yum.repos.d/yarn.repo' 'https://dl.yarnpkg.com/rpm/yarn.repo' \
-    && yum -y install nodejs yarn \
-    && yum -y clean all \
+    && dnf -y install nodejs yarn \
+    && dnf -y clean all \
     && rm -rf /var/cache/yum
 
 # Install packages
-RUN yum -y install epel-release \
-    && yum -y install \
+RUN dnf -y install epel-release \
+    && dnf -y install \
         gcc git make \
-        python36 python36-devel \
+        openssl-devel \
+        python36 python36-devel python3-cryptography \
         tmux ShellCheck vim \
     && yum -y clean all \
     && rm -rf /var/cache/yum
@@ -47,11 +49,12 @@ RUN yarn global add @angular/cli@6.1.2 \
 
 # Create virtual environment and install python dependencies
 COPY requirements/dev-requirements.txt /tmp/requirements.txt
-RUN python3.6 -m venv "${GALAXY_VENV}" \
-    && "${GALAXY_VENV}/bin/pip" install -U \
-        'pip' \
+RUN python3.6 -m venv "${GALAXY_VENV}"
+RUN "${GALAXY_VENV}/bin/pip" install -U \
+        #'pip' \
         'wheel' \
         'setuptools>=57,<58' \
+        'setuptools-rust' \
     && "${GALAXY_VENV}/bin/pip" install -r /tmp/requirements.txt
 
 COPY scripts/docker/dev/entrypoint.sh /entrypoint
